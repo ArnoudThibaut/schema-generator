@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace ApiPlatform\SchemaGenerator\AnnotationGenerator;
 
+use Doctrine\Inflector\Inflector;
+use EasyRdf\Graph;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -22,36 +24,22 @@ use Psr\Log\LoggerInterface;
  */
 abstract class AbstractAnnotationGenerator implements AnnotationGeneratorInterface
 {
+    protected Inflector $inflector;
+    protected LoggerInterface $logger;
     /**
-     * @var LoggerInterface
+     * @var Graph[]
      */
-    protected $logger;
-
-    /**
-     * @var \EasyRdf_Graph[]
-     */
-    protected $graphs;
-
-    /**
-     * @var array
-     */
-    protected $cardinalities;
-
-    /**
-     * @var array
-     */
-    protected $config;
-
-    /**
-     * @var array
-     */
-    protected $classes;
+    protected array $graphs;
+    protected array $cardinalities;
+    protected array $config;
+    protected array $classes;
 
     /**
      * {@inheritdoc}
      */
-    public function __construct(LoggerInterface $logger, array $graphs, array $cardinalities, array $config, array $classes)
+    public function __construct(Inflector $inflector, LoggerInterface $logger, array $graphs, array $cardinalities, array $config, array $classes)
     {
+        $this->inflector = $inflector;
         $this->logger = $logger;
         $this->graphs = $graphs;
         $this->cardinalities = $cardinalities;
@@ -157,7 +145,6 @@ abstract class AbstractAnnotationGenerator implements AnnotationGeneratorInterfa
                 $data = '\\'.\DateTimeInterface::class;
                 break;
             case 'Number':
-                // No break
             case 'Float':
                 $data = 'float';
                 break;

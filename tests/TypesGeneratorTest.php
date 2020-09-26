@@ -17,9 +17,12 @@ use ApiPlatform\SchemaGenerator\CardinalitiesExtractor;
 use ApiPlatform\SchemaGenerator\GoodRelationsBridge;
 use ApiPlatform\SchemaGenerator\TypesGenerator;
 use ApiPlatform\SchemaGenerator\TypesGeneratorConfiguration;
+use Doctrine\Inflector\InflectorFactory;
+use EasyRdf\Graph;
 use PHPUnit\Framework\TestCase;
 use Prophecy\Argument;
 use Psr\Log\NullLogger;
+use Twig\Environment;
 
 /**
  * @author Teoh Han Hui <teohhanhui@gmail.com>
@@ -28,11 +31,11 @@ class TypesGeneratorTest extends TestCase
 {
     public function testGenerate(): void
     {
-        $twigProphecy = $this->prophesize(\Twig_Environment::class);
+        $twigProphecy = $this->prophesize(Environment::class);
         foreach ($this->getClasses() as $class) {
-            $twigProphecy->render('class.php.twig', Argument::that($this->getContextMatcher($class)))->willReturn()->shouldBeCalled();
+            $twigProphecy->render('class.php.twig', Argument::that($this->getContextMatcher($class)))->willReturn('')->shouldBeCalled();
         }
-        $twigProphecy->render('class.php.twig', Argument::type('array'))->willReturn();
+        $twigProphecy->render('class.php.twig', Argument::type('array'))->willReturn('');
         $twig = $twigProphecy->reveal();
 
         $cardinalitiesExtractorProphecy = $this->prophesize(CardinalitiesExtractor::class);
@@ -43,14 +46,14 @@ class TypesGeneratorTest extends TestCase
         $goodRelationsBridgeProphecy = $this->prophesize(GoodRelationsBridge::class);
         $goodRelationsBridge = $goodRelationsBridgeProphecy->reveal();
 
-        $typesGenerator = new TypesGenerator($twig, new NullLogger(), $this->getGraphs(), $cardinalitiesExtractor, $goodRelationsBridge);
+        $typesGenerator = new TypesGenerator(InflectorFactory::create()->build(), $twig, new NullLogger(), $this->getGraphs(), $cardinalitiesExtractor, $goodRelationsBridge);
 
         $typesGenerator->generate($this->getConfig());
     }
 
     private function getGraphs(): array
     {
-        $graph = new \EasyRdf_Graph();
+        $graph = new Graph();
 
         $graph->addResource('http://schema.org/Article', 'rdf:type', 'rdfs:Class');
         $graph->addResource('http://schema.org/Article', 'rdfs:subClassOf', 'http://schema.org/CreativeWork');
@@ -125,7 +128,7 @@ class TypesGeneratorTest extends TestCase
             ],
             'checkIsGoodRelations' => false,
             'namespaces' => [
-                'entity' => 'AppBundle\Entity',
+                'entity' => 'App\Entity',
             ],
             'output' => 'build/type-generator-test',
             'types' => [
@@ -219,7 +222,7 @@ class TypesGeneratorTest extends TestCase
                 'hasChild' => true,
                 'isEnum' => false,
                 'name' => 'Article',
-                'namespace' => 'AppBundle\Entity',
+                'namespace' => 'App\Entity',
                 'parent' => 'CreativeWork',
             ],
             'BlogPosting' => [
@@ -243,7 +246,7 @@ class TypesGeneratorTest extends TestCase
                 'hasChild' => false,
                 'isEnum' => false,
                 'name' => 'BlogPosting',
-                'namespace' => 'AppBundle\Entity',
+                'namespace' => 'App\Entity',
                 'parent' => 'SocialMediaPosting',
             ],
             'CreativeWork' => [
@@ -306,7 +309,7 @@ class TypesGeneratorTest extends TestCase
                 'hasChild' => true,
                 'isEnum' => false,
                 'name' => 'CreativeWork',
-                'namespace' => 'AppBundle\Entity',
+                'namespace' => 'App\Entity',
                 'parent' => 'Thing',
             ],
             'Person' => [
@@ -330,7 +333,7 @@ class TypesGeneratorTest extends TestCase
                 'hasChild' => false,
                 'isEnum' => false,
                 'name' => 'Person',
-                'namespace' => 'AppBundle\Entity',
+                'namespace' => 'App\Entity',
                 'parent' => 'Thing',
             ],
             'SocialMediaPosting' => [
@@ -354,7 +357,7 @@ class TypesGeneratorTest extends TestCase
                 'hasChild' => true,
                 'isEnum' => false,
                 'name' => 'SocialMediaPosting',
-                'namespace' => 'AppBundle\Entity',
+                'namespace' => 'App\Entity',
                 'parent' => 'Article',
             ],
             'Thing' => [
@@ -378,23 +381,17 @@ class TypesGeneratorTest extends TestCase
                 'hasChild' => true,
                 'isEnum' => false,
                 'name' => 'Thing',
-                'namespace' => 'AppBundle\Entity',
+                'namespace' => 'App\Entity',
                 'parent' => false,
             ],
         ];
     }
 
-    /**
-     * @param array $class
-     *
-     * @return \Closure
-     */
-    private function getContextMatcher(array $class)
+    private function getContextMatcher(array $class): \Closure
     {
         $config = $this->getConfig();
-        $classes = $this->getClasses();
 
-        return function ($context) use ($config, $classes, $class) {
+        return function ($context) use ($config, $class) {
             if (!isset($context['config']) || $config !== $context['config']) {
                 return false;
             }
@@ -402,7 +399,7 @@ class TypesGeneratorTest extends TestCase
             $baseClass = $class;
             unset($baseClass['fields']);
 
-            if (!isset($context['class']) || !is_array($context['class']) || $this->arrayEqual($baseClass, array_intersect_key($context['class'], $baseClass))) {
+            if (!isset($context['class']) || !\is_array($context['class']) || $this->arrayEqual($baseClass, array_intersect_key($context['class'], $baseClass))) {
                 return false;
             }
 
@@ -416,6 +413,6 @@ class TypesGeneratorTest extends TestCase
 
     private function arrayEqual(array $a, array $b): bool
     {
-        return count($a) === count($b) && !array_diff($a, $b);
+        return \count($a) === \count($b) && !array_diff($a, $b);
     }
 }

@@ -22,7 +22,7 @@ use Symfony\Component\Console\Tester\CommandTester;
  */
 class DumpConfigurationTest extends TestCase
 {
-    public function testDumpConfiguration()
+    public function testDumpConfiguration(): void
     {
         $commandTester = new CommandTester(new DumpConfigurationCommand());
         $this->assertEquals(0, $commandTester->execute([]));
@@ -31,16 +31,16 @@ class DumpConfigurationTest extends TestCase
                 <<<'YAML'
 config:
 
-    # RDFa files
-    rdfa:
+    # RDF vocabularies
+    vocabs:
 
         # Prototype
         -
 
-            # RDFa URI to use
-            uri:                  %s # Example: https://schema.org/docs/schema_org_rdfa.html
+            # RDF vocabulary to use
+            uri:                  'https://schema.org/version/latest/schema.rdf' # Example: https://schema.org/version/latest/all-layers.rdf
 
-            # RDFa URI data format
+            # RDF vocabulary format
             format:               null # Example: rdfxml
 
     # OWL relation files to use
@@ -76,14 +76,17 @@ config:
     # PHP namespaces
     namespaces:
 
+        # The global namespace's prefix
+        prefix:               null # Example: App\
+
         # The namespace of the generated entities
-        entity:               AppBundle\Entity # Example: Acme\Entity
+        entity:               App\Entity # Example: App\Entity
 
         # The namespace of the generated enumerations
-        enum:                 AppBundle\Enum # Example: Acme\Enum
+        enum:                 App\Enum # Example: App\Enum
 
         # The namespace of the generated interfaces
-        interface:            AppBundle\Model # Example: Acme\Model
+        interface:            App\Model # Example: App\Model
 
     # Doctrine
     doctrine:
@@ -168,6 +171,12 @@ config:
                     # Symfony Serialization Groups
                     groups:               []
 
+                    # The doctrine mapped by attribute
+                    mappedBy:             null # Example: partOfSeason
+
+                    # The doctrine inversed by attribute
+                    inversedBy:           null # Example: episodes
+
                     # Is the property readable?
                     readable:             true
 
@@ -196,10 +205,12 @@ config:
         - ApiPlatform\SchemaGenerator\AnnotationGenerator\ConstraintAnnotationGenerator
         - ApiPlatform\SchemaGenerator\AnnotationGenerator\SerializerGroupsAnnotationGenerator
 
+    # Directories for custom generator twig templates
+    generatorTemplates:   []
+
 
 YAML
                 ,
-                str_replace('generator/data', 'generator/src/../data', realpath(__DIR__.'/../../data/schema.rdfa')),
                 str_replace('generator/data', 'generator/src/../data', realpath(__DIR__.'/../../data/v1.owl'))
             ),
             $commandTester->getDisplay()

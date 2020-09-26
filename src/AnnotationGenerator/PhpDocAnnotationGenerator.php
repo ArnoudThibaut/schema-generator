@@ -13,7 +13,7 @@ declare(strict_types=1);
 
 namespace ApiPlatform\SchemaGenerator\AnnotationGenerator;
 
-use Doctrine\Common\Inflector\Inflector;
+use Doctrine\Inflector\Inflector;
 use League\HTMLToMarkdown\HtmlConverter;
 use Psr\Log\LoggerInterface;
 
@@ -26,17 +26,14 @@ final class PhpDocAnnotationGenerator extends AbstractAnnotationGenerator
 {
     private const INDENT = '   ';
 
-    /**
-     * @var HtmlConverter
-     */
-    private $htmlToMarkdown;
+    private HtmlConverter $htmlToMarkdown;
 
     /**
      * {@inheritdoc}
      */
-    public function __construct(LoggerInterface $logger, array $graphs, array $cardinalities, array $config, array $classes)
+    public function __construct(Inflector $inflector, LoggerInterface $logger, array $graphs, array $cardinalities, array $config, array $classes)
     {
-        parent::__construct($logger, $graphs, $cardinalities, $config, $classes);
+        parent::__construct($inflector, $logger, $graphs, $cardinalities, $config, $classes);
 
         $this->htmlToMarkdown = new HtmlConverter();
     }
@@ -121,7 +118,7 @@ final class PhpDocAnnotationGenerator extends AbstractAnnotationGenerator
             return [];
         }
 
-        return [sprintf('@param %s $%s', $this->toPhpType($this->classes[$className]['fields'][$fieldName], true), Inflector::singularize($fieldName))];
+        return [sprintf('@param %s $%s', $this->toPhpType($this->classes[$className]['fields'][$fieldName], true), $this->inflector->singularize($fieldName))];
     }
 
     /**
@@ -133,7 +130,7 @@ final class PhpDocAnnotationGenerator extends AbstractAnnotationGenerator
             return [];
         }
 
-        return [sprintf('@param  %s $%s', $this->toPhpType($this->classes[$className]['fields'][$fieldName], true), Inflector::singularize($fieldName))];
+        return [sprintf('@param  %s $%s', $this->toPhpType($this->classes[$className]['fields'][$fieldName], true), $this->inflector->singularize($fieldName))];
     }
 
     private function isDocUseful(string $className, string $fieldName, $adderOrRemover = false): bool
@@ -175,7 +172,7 @@ final class PhpDocAnnotationGenerator extends AbstractAnnotationGenerator
         $doc = explode("\n", $this->htmlToMarkdown->convert($doc));
 
         if ($indent) {
-            $count = count($doc);
+            $count = \count($doc);
             for ($i = 1; $i < $count; ++$i) {
                 $doc[$i] = self::INDENT.$doc[$i];
             }

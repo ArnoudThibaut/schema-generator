@@ -29,50 +29,60 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
 final class TypesGeneratorConfiguration implements ConfigurationInterface
 {
     /**
-     * @see https://schema.org/docs/schema_org_rdfa.html
+     * @see https://schema.org/version/latest/schema.rdf
      */
-    public const SCHEMA_ORG_RDFA_URL = __DIR__.'/../data/schema.rdfa';
+    public const SCHEMA_ORG_URI = 'https://schema.org/version/latest/schema.rdf';
 
     /**
      * @see https://purl.org/goodrelations/v1.owl
      */
-    public const GOOD_RELATIONS_OWL_URL = __DIR__.'/../data/v1.owl';
+    public const GOOD_RELATIONS_URI = __DIR__.'/../data/v1.owl';
     public const SCHEMA_ORG_NAMESPACE = 'http://schema.org/';
+
+    private ?string $defaultPrefix;
+
+    public function __construct(?string $defaultPrefix = null)
+    {
+        $this->defaultPrefix = $defaultPrefix;
+    }
 
     /**
      * {@inheritdoc}
      */
     public function getConfigTreeBuilder(): TreeBuilder
     {
-        $treeBuilder = new TreeBuilder();
-        $rootNode = $treeBuilder->root('config');
-        $rootNode
+        $namespacePrefix = $this->defaultPrefix ?? 'App\\';
+
+        $treeBuilder = new TreeBuilder('config');
+
+        $treeBuilder
+            ->getRootNode()
             ->children()
-                ->arrayNode('rdfa')
-                    ->info('RDFa files')
-                    ->defaultValue([['uri' => self::SCHEMA_ORG_RDFA_URL, 'format' => 'rdfa']])
+                ->arrayNode('vocabs')
+                    ->info('RDF vocabularies')
+                    ->defaultValue([['uri' => self::SCHEMA_ORG_URI, 'format' => 'rdfxml']])
                     ->beforeNormalization()
                         ->ifArray()
-                        ->then(function (array $v) {
+                        ->then(static function (array $v) {
                             return array_map(
-                                function ($rdfa) {
-                                    return is_scalar($rdfa) ? ['uri' => $rdfa, 'format' => null] : $rdfa;
+                                static function ($rdf) {
+                                    return is_scalar($rdf) ? ['uri' => $rdf, 'format' => null] : $rdf;
                                 },
                                 $v
                             );
                         })
                     ->end()
-                    ->prototype('array')
+                    ->arrayPrototype()
                         ->children()
-                            ->scalarNode('uri')->defaultValue(self::SCHEMA_ORG_RDFA_URL)->info('RDFa URI to use')->example('https://schema.org/docs/schema_org_rdfa.html')->end()
-                            ->scalarNode('format')->defaultNull()->info('RDFa URI data format')->example('rdfxml')->end()
+                            ->scalarNode('uri')->defaultValue(self::SCHEMA_ORG_URI)->info('RDF vocabulary to use')->example('https://schema.org/version/latest/all-layers.rdf')->end()
+                            ->scalarNode('format')->defaultNull()->info('RDF vocabulary format')->example('rdfxml')->end()
                         ->end()
                     ->end()
                 ->end()
                 ->arrayNode('relations')
                     ->info('OWL relation files to use')
                     ->example('https://purl.org/goodrelations/v1.owl')
-                    ->defaultValue([self::GOOD_RELATIONS_OWL_URL])
+                    ->defaultValue([self::GOOD_RELATIONS_URI])
                     ->prototype('scalar')->end()
                 ->end()
                 ->booleanNode('debug')->defaultFalse()->info('Debug mode')->end()
@@ -92,9 +102,10 @@ final class TypesGeneratorConfiguration implements ConfigurationInterface
                     ->addDefaultsIfNotSet()
                     ->info('PHP namespaces')
                     ->children()
-                        ->scalarNode('entity')->defaultValue('AppBundle\Entity')->info('The namespace of the generated entities')->example('Acme\Entity')->end()
-                        ->scalarNode('enum')->defaultValue('AppBundle\Enum')->info('The namespace of the generated enumerations')->example('Acme\Enum')->end()
-                        ->scalarNode('interface')->defaultValue('AppBundle\Model')->info('The namespace of the generated interfaces')->example('Acme\Model')->end()
+                        ->scalarNode('prefix')->defaultValue($this->defaultPrefix)->info('The global namespace\'s prefix')->example('App\\')->end()
+                        ->scalarNode('entity')->defaultValue("{$namespacePrefix}Entity")->info('The namespace of the generated entities')->example('App\Entity')->end()
+                        ->scalarNode('enum')->defaultValue("{$namespacePrefix}Enum")->info('The namespace of the generated enumerations')->example('App\Enum')->end()
+                        ->scalarNode('interface')->defaultValue("{$namespacePrefix}Model")->info('The namespace of the generated interfaces')->example('App\Model')->end()
                     ->end()
                 ->end()
                 ->arrayNode('doctrine')
@@ -131,7 +142,7 @@ final class TypesGeneratorConfiguration implements ConfigurationInterface
                     ->end()
                     ->info('Schema.org\'s types to use')
                     ->useAttributeAsKey('id')
-                    ->prototype('array')
+                    ->arrayPrototype()
                         ->children()
                             ->scalarNode('vocabularyNamespace')->defaultValue(self::SCHEMA_ORG_NAMESPACE)->info('Namespace of the vocabulary the type belongs to.')->end()
                             ->booleanNode('abstract')->defaultNull()->info('Is the class abstract? (null to guess)')->end()
@@ -156,7 +167,7 @@ final class TypesGeneratorConfiguration implements ConfigurationInterface
                             ->arrayNode('properties')
                                 ->info('Properties of this type to use')
                                 ->useAttributeAsKey('id')
-                                ->prototype('array')
+                                ->arrayPrototype()
                                     ->addDefaultsIfNotSet()
                                     ->children()
                                         ->scalarNode('range')->defaultNull()->info('The property range')->example('Offer')->end()
@@ -176,12 +187,14 @@ final class TypesGeneratorConfiguration implements ConfigurationInterface
                                             ->info('Symfony Serialization Groups')
                                             ->prototype('scalar')->end()
                                         ->end()
+                                        ->scalarNode('mappedBy')->defaultNull()->info('The doctrine mapped by attribute')->example('partOfSeason')->end()
+                                        ->scalarNode('inversedBy')->defaultNull()->info('The doctrine inversed by attribute')->example('episodes')->end()
                                         ->booleanNode('readable')->defaultTrue()->info('Is the property readable?')->end()
                                         ->booleanNode('writable')->defaultTrue()->info('Is the property writable?')->end()
                                         ->booleanNode('nullable')->defaultTrue()->info('Is the property nullable?')->end()
                                         ->booleanNode('unique')->defaultFalse()->info('The property unique')->end()
                                         ->booleanNode('embedded')->defaultFalse()->info('Is the property embedded?')->end()
-                                        ->booleanNode('columnPrefix')->defaultFalse()->info('The property columnPrefix')->end()
+                                        ->scalarNode('columnPrefix')->defaultFalse()->info('The property columnPrefix')->end()
                                     ->end()
                                 ->end()
                             ->end()
@@ -197,6 +210,10 @@ final class TypesGeneratorConfiguration implements ConfigurationInterface
                         ConstraintAnnotationGenerator::class,
                         SerializerGroupsAnnotationGenerator::class,
                     ])
+                    ->prototype('scalar')->end()
+                ->end()
+                ->arrayNode('generatorTemplates')
+                    ->info('Directories for custom generator twig templates')
                     ->prototype('scalar')->end()
                 ->end()
             ->end();
